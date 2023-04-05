@@ -1,0 +1,4 @@
+deepspeed
+numpy
+sentencepiece
+git+https://github.com/huggingface/transformers.git
