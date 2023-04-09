@@ -42,7 +42,7 @@ deepspeed --master_port 22384 train.py \
 
 
 ## todo
-[] gradient checkpoint
-[] add wandb
-[] add eval stage
-[] add flash-attn
+* [X] checkpoint activations
+* [ ] add wandb
+* [ ] add eval stage
+* [ ] add flash-attn
