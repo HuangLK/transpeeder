@@ -1,6 +1,6 @@
 {
-    "train_micro_batch_size_per_gpu": 2,
-    "train_batch_size": 64,
+    "train_micro_batch_size_per_gpu": 16,
+    "train_batch_size": 128,
     "steps_per_print": 1000,
     "gradient_clipping": 1.0,
     "lr-decay-style": "cosine",
@@ -14,6 +14,13 @@
         }
     },
     "min_lr": 1e-6,
-
+    "activation_checkpointing": {
+        "partition_activations": false,
+        "cpu_checkpointing": false,
+        "contiguous_memory_optimization": false,
+        "number_checkpoints": null,
+        "synchronize_checkpoint_boundary": false,
+        "profile": false
+    },
     "wall_clock_breakdown": true
 }

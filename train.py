@@ -78,6 +78,7 @@ def main():
     ds_config = read_ds_config(ds_args.deepspeed_config)
     data_args.num_workers = 2 * ds_args.world_size // ds_args.pipe_parallel_size // ds_args.model_parallel_size
     data_args.batch_size = ds_config.get("train_micro_batch_size_per_gpu", 1)
+    activation_checkpointing_config = ds_config.pop("activation_checkpointing", None)
 
     random.seed(ds_args.seed)
     np.random.seed(ds_args.seed)
@@ -115,7 +116,7 @@ def main():
     # dataset
     train_dataloader = make_prompt_dataloader(tokenizer=tokenizer, data_args=data_args)
     # pipeline model
-    model = get_model(model, ds_args)
+    model = get_model(model, ds_args, activation_checkpointing_config)
 
     engine, _, _, _ = deepspeed.initialize(
         ds_args,

@@ -2,8 +2,8 @@
 import torch
 import torch.nn.functional as F
 from transformers.models.llama.modeling_llama import LlamaDecoderLayer, LlamaRMSNorm
+import deepspeed
 from deepspeed.pipe import PipelineModule
-
 
 
 def _wrap_embed_layer(layer: torch.nn.Module):
@@ -16,7 +16,7 @@ def _wrap_embed_layer(layer: torch.nn.Module):
     layer.__class__ = EmbeddingPipe
     return layer
 
-def _wrap_decoder_layer(idx: int, layer: torch.nn.Module):
+def _wrap_decoder_layer(layer: torch.nn.Module, activation_checkpointing=False):
     class ParallelTransformerLayerPipe(LlamaDecoderLayer):
         def forward(self, args):
             hidden_states, mask = args
@@ -24,6 +24,27 @@ def _wrap_decoder_layer(idx: int, layer: torch.nn.Module):
             # TODO: past_key_value, use_cache
             outputs = LlamaDecoderLayer.forward(self, hidden_states, attention_mask)
             return (outputs[0], mask)
+
+        def _ckpt_forward(self, args):
+            hidden_states, mask = args
+            attention_mask = torch.where(mask == True, float("-inf"), 0).long()
+
+            def create_custom_forward(module):
+                def custom_forward(*inputs):
+                    return LlamaDecoderLayer.forward(module, *inputs)
+                return custom_forward
+
+            # deepspeed checkpoint auto use outputs[0] if len(outputs) == 1
+            outputs = deepspeed.checkpointing.checkpoint(
+                create_custom_forward(self),
+                hidden_states,
+                attention_mask,
+            )
+
+            return (outputs, mask)
+
+    if activation_checkpointing:
+        ParallelTransformerLayerPipe.forward = ParallelTransformerLayerPipe._ckpt_forward
 
     layer.__class__ = ParallelTransformerLayerPipe
     return layer
@@ -48,10 +69,10 @@ def _wrap_lm_layer(layer: torch.nn.Module):
     layer.__class__ = LMLayerPipe
     return layer
 
-def _to_layers(lm_model):
+def _to_layers(lm_model, activation_checkpointing=False):
     layers = [
         _wrap_embed_layer(lm_model.model.embed_tokens),
-        *[_wrap_decoder_layer(i, layer) for i, layer in enumerate(lm_model.model.layers)],
+        *[_wrap_decoder_layer(layer, activation_checkpointing) for layer in lm_model.model.layers],
         _wrap_norm_layer(lm_model.model.norm),
         _wrap_lm_layer(lm_model.lm_head),
     ]
@@ -68,11 +89,21 @@ def loss_fn(outputs, labels):
     )
 
 
-def get_model(lm_model, args):
+def get_model(lm_model, args, activation_checkpointing_config=None):
     class GPT2ModelPipe(PipelineModule):
         def __init__(self, lm_model, **kwargs):
+            if activation_checkpointing_config:
+                deepspeed.checkpointing.configure(
+                    None,
+                    partition_activations=activation_checkpointing_config.get("partition_activations", False),
+                    contiguous_checkpointing=activation_checkpointing_config.get("contiguous_memory_optimization", False),
+                    checkpoint_in_cpu=activation_checkpointing_config.get("cpu_checkpointing", False),
+                    num_checkpoints=activation_checkpointing_config.get("number_checkpoints", None),
+                    synchronize=activation_checkpointing_config.get("synchronize_checkpoint_boundary", False),
+                    profile=activation_checkpointing_config.get("profile", False),
+                )
             super().__init__(
-                layers=_to_layers(lm_model),
+                layers=_to_layers(lm_model, activation_checkpointing=activation_checkpointing_config is not None),
                 **kwargs
             )
 
@@ -88,4 +119,7 @@ def get_model(lm_model, args):
     if 0 < stage_id < topo.get_dim('pipe') - 1:
         args.seed = args.seed + (stage_id * mp)
 
-    return GPT2ModelPipe(lm_model, loss_fn=loss_fn, topology=topo, base_seed=args.seed)
+    return GPT2ModelPipe(lm_model,
+                         loss_fn=loss_fn,
+                         topology=topo,
+                         base_seed=args.seed,)
