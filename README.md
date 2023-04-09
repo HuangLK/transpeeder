@@ -1,5 +1,11 @@
 # llama-deepspeed
+This is a project under development, which aims to fine-tune the llama (7-65B) model based on the 🤗transformers and 🚀deepspeed, and provide simple and convenient training scripts.
 
+## requirement
+```
+pip install -r requirements.txt
+```
+I have made some minor modifications to `deepspeed` and my [PR](https://github.com/microsoft/DeepSpeed/pull/3064) has not been accepted yet, so if there is any problem you can consider using my own [dev branch](https://github.com/HuangLK/DeepSpeed/tree/dev).
 
 ## finetune
 llama-7B
@@ -33,3 +39,10 @@ deepspeed --master_port 22384 train.py \
     --model_parallel_size 1 \
     --deepspeed_config ./configs/ds_config_zero1.json
 ```
+
+
+## todo
+[] gradient checkpoint
+[] add wandb
+[] add eval stage
+[] add flash-attn
