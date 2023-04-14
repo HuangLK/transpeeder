@@ -9,9 +9,9 @@ from deepspeed.pipe import PipelineModule
 def _wrap_embed_layer(layer: torch.nn.Module):
     class EmbeddingPipe(torch.nn.Embedding):
         def forward(self, args):
-            input_ids, attention_mask, _ = args
+            input_ids, position_ids, attention_mask = args
             inputs_embeds = super().forward(input_ids)
-            return (inputs_embeds, attention_mask)
+            return (inputs_embeds, position_ids, attention_mask)
 
     layer.__class__ = EmbeddingPipe
     return layer
@@ -19,14 +19,18 @@ def _wrap_embed_layer(layer: torch.nn.Module):
 def _wrap_decoder_layer(layer: torch.nn.Module, activation_checkpointing=False):
     class ParallelTransformerLayerPipe(LlamaDecoderLayer):
         def forward(self, args):
-            hidden_states, mask = args
+            hidden_states, position_ids, mask = args
             attention_mask = torch.where(mask == True, float("-inf"), 0).long()
-            # TODO: past_key_value, use_cache
-            outputs = LlamaDecoderLayer.forward(self, hidden_states, attention_mask)
-            return (outputs[0], mask)
+
+            outputs = LlamaDecoderLayer.forward(self,
+                                                hidden_states,
+                                                attention_mask,
+                                                position_ids,
+            )
+            return (outputs[0], position_ids, mask)
 
         def _ckpt_forward(self, args):
-            hidden_states, mask = args
+            hidden_states, position_ids, mask = args
             attention_mask = torch.where(mask == True, float("-inf"), 0).long()
 
             def create_custom_forward(module):
@@ -39,9 +43,10 @@ def _wrap_decoder_layer(layer: torch.nn.Module, activation_checkpointing=False):
                 create_custom_forward(self),
                 hidden_states,
                 attention_mask,
+                position_ids,
             )
 
-            return (outputs, mask)
+            return (outputs, position_ids, mask)
 
     if activation_checkpointing:
         ParallelTransformerLayerPipe.forward = ParallelTransformerLayerPipe._ckpt_forward
@@ -52,7 +57,7 @@ def _wrap_decoder_layer(layer: torch.nn.Module, activation_checkpointing=False):
 def _wrap_norm_layer(layer: torch.nn.Module):
     class LayerNormPipe(LlamaRMSNorm):
         def forward(self, args):
-            hidden_states, _ = args
+            hidden_states, *_ = args
             last_hidden_states = super().forward(hidden_states)
             return (last_hidden_states,)
 

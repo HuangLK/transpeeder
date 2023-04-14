@@ -1,19 +1,30 @@
 {
     "train_micro_batch_size_per_gpu": 16,
     "train_batch_size": 128,
-    "steps_per_print": 1000,
+    "steps_per_print": 100,
     "gradient_clipping": 1.0,
     "lr-decay-style": "cosine",
-    "warmup": 0.03,
+    "warmup": 0.1,
+    "bf16": {
+        "enabled": false
+    },
+    "fp16": {
+        "enabled": true,
+        "loss_scale": 0,
+        "loss_scale_window": 1000,
+        "initial_scale_power": 12,
+        "hysteresis": 2,
+        "min_loss_scale": 1
+    },
     "optimizer": {
         "type": "Adam",
         "params": {
-            "lr": 1e-5,
+            "lr": 5e-6,
             "betas": [0.9, 0.95],
             "eps": 1.0e-8
         }
     },
-    "min_lr": 1e-6,
+    "min_lr": 5e-7,
     "activation_checkpointing": {
         "partition_activations": false,
         "cpu_checkpointing": false,
