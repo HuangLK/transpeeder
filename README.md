@@ -20,6 +20,7 @@ deepspeed --include localhost:0,1,2,3  --master_port 22384 train.py \
     --log_steps 1 \
     --pipe_parallel_size 4 \
     --model_parallel_size 1 \
+    --use_flash_attn true \
     --deepspeed_config ./configs/ds_config.json
 ```
 
@@ -36,6 +37,7 @@ deepspeed --master_port 22384 train.py \
     --log_steps 1 \
     --pipe_parallel_size 8 \
     --model_parallel_size 1 \
+    --use_flash_attn true \
     --deepspeed_config ./configs/ds_config_zero1.json
 ```
 

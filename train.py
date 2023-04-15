@@ -13,6 +13,7 @@ import deepspeed
 from models.llama_pipeline_model import get_model
 from models.patching import (
     smart_tokenizer_and_embedding_resize,
+    replace_llama_attn_with_flash_attn,
 )
 from feeder import (
     make_prompt_dataloader,
@@ -30,6 +31,7 @@ warnings.filterwarnings("ignore")
 class ModelArguments:
     tokenizer_name_or_path: Optional[str] = field(default='')
     model_name_or_path: Optional[str] = field(default="facebook/opt-125m")
+    use_flash_attn: Optional[bool] = field(default=False)
 
 @dataclass
 class DeepspeedArguments:
@@ -93,8 +95,13 @@ def main():
         use_fast=False,
     )
 
+    if model_args.use_flash_attn:
+        logger.info("⚡⚡⚡ enable flash attention.")
+        replace_llama_attn_with_flash_attn()
+
     model = transformers.AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
+        torch_dtype=torch.float16,
     )
 
     if tokenizer.pad_token is None:
@@ -131,7 +138,7 @@ def main():
             if step % trainer_args.log_steps == 0:
                 now = time.time()
                 avg_time = (now-start) / trainer_args.log_steps
-                logger.info(f"Step={step:>6}, loss={loss.item():.2f}, {avg_time:.2f} it/s")
+                logger.info(f"Step={step:>6}, loss={loss.item():.4f}, {avg_time:.2f} it/s")
                 start = now
 
         if step % trainer_args.eval_steps == 0:
