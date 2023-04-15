@@ -194,5 +194,6 @@ def make_prompt_dataloader(tokenizer: transformers.PreTrainedTokenizer, data_arg
                             num_workers=data_args.num_workers,
                             batch_size=data_args.batch_size,
                             shuffle=True,
+                            drop_last=True,
                             generator=g,)
     return iter(deepspeed.utils.RepeatingLoader(dataloader))
