@@ -101,7 +101,6 @@ def main():
 
     model = transformers.AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
-        torch_dtype=torch.float16,
     )
 
     if tokenizer.pad_token is None:
