@@ -33,5 +33,11 @@
         "synchronize_checkpoint_boundary": false,
         "profile": false
     },
+    "wandb": {
+        "enabled": true,
+        "team": null,
+        "group": null,
+        "project": "llama-7B-test"
+    },
     "wall_clock_breakdown": true
 }
