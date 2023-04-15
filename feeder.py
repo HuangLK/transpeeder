@@ -117,8 +117,6 @@ class PromptDataset(Dataset):
                         logger.warning(f'{single_file} exceeds max error number. skipped.')
                         break
 
-        # deepspeed pipeline engine doesn't use random sampler.
-        random.shuffle(self.samples)
         logger.info(f'total samples num: {len(self.samples)}')
 
     def __len__(self):
@@ -155,20 +153,8 @@ class DataCollatorForPromptDataset(object):
         position_ids = torch.arange(seq_length, dtype=torch.long)
         return position_ids.unsqueeze(0).expand_as(input_ids)
 
-    def _slim_input(self, source: str):
-        if "### Input:" not in source:
-            return source
-        context_st = source.index("### Input:") + len("### Input:")
-        context_ed = source.index("### Response:") - 2
-        context = source[context_st: context_ed]
-        words = context.split(' ')
-        # mitigate cross entropy emitting `nan`
-        if len(words) > 300:
-            context = ' '.join(words[: 300])
-        return source[: context_st] + context + source[context_ed: ]
-
     def __call__(self, samples: Sequence[Dict]) -> Dict[str, torch.Tensor]:
-        sources = [self._slim_input(sample[PROMPT_FIELD]) for sample in samples]
+        sources = [sample[PROMPT_FIELD] for sample in samples]
         targets = [sample[OUTPUT_FIELD] for sample in samples]
 
         data_dict = preprocess(sources, targets, self.tokenizer, self.mode)
@@ -182,8 +168,8 @@ class DataCollatorForPromptDataset(object):
         return (
             (
                 input_ids,
-                self.get_attn_mask(input_ids),
                 self.get_position_ids(input_ids),
+                self.get_attn_mask(input_ids),
             ),
             labels
         )
@@ -207,5 +193,6 @@ def make_prompt_dataloader(tokenizer: transformers.PreTrainedTokenizer, data_arg
                             collate_fn=data_collator,
                             num_workers=data_args.num_workers,
                             batch_size=data_args.batch_size,
+                            shuffle=True,
                             generator=g,)
     return iter(deepspeed.utils.RepeatingLoader(dataloader))

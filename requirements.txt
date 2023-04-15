@@ -1,4 +1,4 @@
-deepspeed
 numpy
 sentencepiece
-git+https://github.com/huggingface/transformers.git
+transformers==4.28.0
+git+https://github.com/HuangLK/DeepSpeed.git@dev
