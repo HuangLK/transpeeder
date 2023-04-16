@@ -12,15 +12,10 @@ import deepspeed
 
 from models.llama_pipeline_model import get_model
 from models.patching import (
-    smart_tokenizer_and_embedding_resize,
     replace_llama_attn_with_flash_attn,
 )
 from feeder import (
     make_prompt_dataloader,
-    DEFAULT_BOS_TOKEN,
-    DEFAULT_PAD_TOKEN,
-    DEFAULT_EOS_TOKEN,
-    DEFAULT_UNK_TOKEN,
 )
 from utils import jload
 from utils import logger_rank0 as logger
@@ -29,8 +24,7 @@ warnings.filterwarnings("ignore")
 
 @dataclass
 class ModelArguments:
-    tokenizer_name_or_path: Optional[str] = field(default='')
-    model_name_or_path: Optional[str] = field(default="facebook/opt-125m")
+    init_ckpt: str = field(default="llama-7B-init-test-ckpt")
     use_flash_attn: Optional[bool] = field(default=False)
 
 @dataclass
@@ -87,48 +81,31 @@ def main():
     torch.manual_seed(ds_args.seed)
     deepspeed.runtime.utils.set_random_seed(ds_args.seed)
 
-
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        model_args.tokenizer_name_or_path or model_args.model_name_or_path,
-        model_max_length=trainer_args.max_seq_len,
-        padding_side="right",
-        use_fast=False,
-    )
-
     if model_args.use_flash_attn:
         logger.info("⚡⚡⚡ enable flash attention.")
         replace_llama_attn_with_flash_attn()
 
-    model = transformers.AutoModelForCausalLM.from_pretrained(
-        model_args.model_name_or_path,
+    tokenizer = transformers.AutoTokenizer.from_pretrained(
+        model_args.init_ckpt,
+        model_max_length=trainer_args.max_seq_len,
+        padding_side="right",
+        use_fast=True,
     )
-
-    if tokenizer.pad_token is None:
-        smart_tokenizer_and_embedding_resize(
-            special_tokens_dict=dict(pad_token=DEFAULT_PAD_TOKEN),
-            tokenizer=tokenizer,
-            model=model,
-        )
-
-    if "llama" in model_args.model_name_or_path:
-        tokenizer.add_special_tokens(
-            {
-                "eos_token": DEFAULT_EOS_TOKEN,
-                "bos_token": DEFAULT_BOS_TOKEN,
-                "unk_token": DEFAULT_UNK_TOKEN,
-            }
-        )
+    model_config = transformers.AutoConfig.from_pretrained(model_args.init_ckpt)
 
     # dataset
     train_dataloader = make_prompt_dataloader(tokenizer=tokenizer, data_args=data_args)
     # pipeline model
-    model = get_model(model, ds_args, activation_checkpointing_config)
+    model = get_model(model_config, ds_args, activation_checkpointing_config)
 
     engine, _, _, _ = deepspeed.initialize(
         ds_args,
         model=model,
         model_parameters=[p for p in model.parameters() if p.requires_grad]
     )
+
+    # use `convert2ckpt.py`
+    engine.load_checkpoint(model_args.init_ckpt, load_module_only=True)
 
     start = time.time()
     for step in range(1, trainer_args.train_steps + 1):
