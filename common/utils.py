@@ -3,47 +3,10 @@ import os
 import sys
 import time
 import json
-
-import transformers
 import torch.distributed as dist
-from loguru import logger as logger
-
-
-logger.add(f'ds_training.log')
-
 
 def is_rank_0() -> bool:
     return not dist.is_initialized() or dist.get_rank() == 0
-
-
-class LoggerRank0:
-    def trace(self, *args, **kwargs):
-        if not is_rank_0():
-            return
-        logger.trace(*args, **kwargs)
-
-    def debug(self, *args, **kwargs):
-        if not is_rank_0():
-            return
-        logger.debug(*args, **kwargs)
-
-    def info(self, *args, **kwargs):
-        if not is_rank_0():
-            return
-        logger.info(*args, **kwargs)
-
-    def warning(self, *args, **kwargs):
-        if not is_rank_0():
-            return
-        logger.warning(*args, **kwargs)
-
-    def error(self, *args, **kwargs):
-        if not is_rank_0():
-            return
-        logger.error(*args, **kwargs)
-
-logger_rank0 = LoggerRank0()
-
 
 def _make_w_io_base(f, mode: str):
     if not isinstance(f, io.IOBase):
