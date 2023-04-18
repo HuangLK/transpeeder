@@ -17,8 +17,8 @@ from models.patching import (
 from feeder import (
     make_prompt_dataloader,
 )
-from utils import jload
-from utils import logger_rank0 as logger
+from common.utils import jload
+from common.log import logger_rank0 as logger
 
 warnings.filterwarnings("ignore")
 

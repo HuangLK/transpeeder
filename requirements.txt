@@ -3,3 +3,5 @@ sentencepiece
 transformers==4.28.0
 git+https://github.com/HuangLK/DeepSpeed.git@dev
 flash_attn
+einops
+loguru
