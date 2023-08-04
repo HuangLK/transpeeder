@@ -20,6 +20,7 @@ from feeder import (
 class Arguments:
     model_name_or_path: Optional[str] = field(default="/path/to/llama-7b-hf")
     output_dir: str = field(default="./llama-7B-init-ckpt")
+    mp_world_size: int = field(default=8)
 
 
 def write_ckpt(outpath: Path, model: torch.nn.Module, model_config: transformers.AutoConfig, mp: int):
@@ -68,6 +69,24 @@ def main():
             model=model,
         )
 
+    special_tokens_map = {
+        "additional_special_tokens": [
+            "<|prefix_begin|>",
+            "<|prefix_end|>",
+            "<|prompter|>",
+            "<|endoftext|>",
+            "<|assistant|>"
+        ],
+    }
+    if tokenizer.pad_token is None:
+        special_tokens_map.update(dict(pad_token=DEFAULT_PAD_TOKEN))
+
+    smart_tokenizer_and_embedding_resize(
+        special_tokens_dict=special_tokens_map,
+        tokenizer=tokenizer,
+        model=model,
+    )
+
     if "llama" in args.model_name_or_path:
         tokenizer.add_special_tokens(
             {
@@ -76,6 +95,8 @@ def main():
                 "unk_token": DEFAULT_UNK_TOKEN,
             }
         )
+
+    model_config.vocab_size = len(tokenizer)
 
     outpath = Path(args.output_dir)
     if outpath.exists():
