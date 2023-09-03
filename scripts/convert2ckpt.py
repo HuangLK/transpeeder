@@ -5,10 +5,10 @@ from dataclasses import dataclass, field
 import torch
 import transformers
 
-from models.patching import (
+from transpeeder.models.patching import (
     smart_tokenizer_and_embedding_resize,
 )
-from feeder import (
+from transpeeder.feeder import (
     DEFAULT_BOS_TOKEN,
     DEFAULT_PAD_TOKEN,
     DEFAULT_EOS_TOKEN,

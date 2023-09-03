@@ -84,7 +84,7 @@ def main():
         args.init_ckpt,
         model_max_length=args.max_seq_len,
         padding_side="right",
-        use_fast=True,
+        use_fast=False,
     )
     model_config = transformers.AutoConfig.from_pretrained(args.init_ckpt)
 

@@ -12,20 +12,12 @@ class EmbeddingPipe(torch.nn.Embedding):
         inputs_embeds = super().forward(input_ids)
         return (inputs_embeds, position_ids, attention_mask)
 
-def _wrap_embed_layer(layer: torch.nn.Module):
-    layer.__class__ = EmbeddingPipe
-    return layer
-
 
 class ParallelTransformerLayerPipe(LlamaDecoderLayer):
-    def __init__(self, config: LlamaConfig, activation_checkpointing=False):
+    def __init__(self, config: LlamaConfig):
         super().__init__(config)
-        self.activation_checkpointing = activation_checkpointing
 
     def forward(self, args):
-        if self.activation_checkpointing:
-            return self._ckpt_forward(args)
-
         hidden_states, position_ids, mask = args
         attention_mask = torch.where(mask == True, float("-inf"), 0).long()
 
@@ -35,25 +27,6 @@ class ParallelTransformerLayerPipe(LlamaDecoderLayer):
                                             position_ids,
         )
         return (outputs[0], position_ids, mask)
-
-    def _ckpt_forward(self, args):
-        hidden_states, position_ids, mask = args
-        attention_mask = torch.where(mask == True, float("-inf"), 0).long()
-
-        def create_custom_forward(module):
-            def custom_forward(*inputs):
-                return LlamaDecoderLayer.forward(module, *inputs)
-            return custom_forward
-
-        # deepspeed checkpoint auto use outputs[0] if len(outputs) == 1
-        outputs = deepspeed.checkpointing.checkpoint(
-            create_custom_forward(self),
-            hidden_states,
-            attention_mask,
-            position_ids,
-        )
-
-        return (outputs, position_ids, mask)
 
 
 class LayerNormPipe(LlamaRMSNorm):
