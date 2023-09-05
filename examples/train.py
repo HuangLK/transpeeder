@@ -13,6 +13,7 @@ import deepspeed
 from transpeeder.models.llama_pipeline_model import get_model
 from transpeeder.models.patching import (
     replace_llama_attn_with_flash_attn,
+    refine_rope,
 )
 from transpeeder.feeder import (
     make_prompt_dataloader,
@@ -51,7 +52,7 @@ class TrainerArguments:
 
     resume_step: int = field(default=-1)
     resume_ckpt: str = field(default="llama-7B-init-test-ckpt")
-
+    ntk : Optional[bool] = field(default=False)
 
 def read_ds_config(config_path):
     config = jload(config_path)
@@ -79,6 +80,7 @@ def main():
     if args.use_flash_attn:
         logger.info("⚡⚡⚡ enable flash attention.")
         replace_llama_attn_with_flash_attn()
+        refine_rope()
 
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         args.init_ckpt,
@@ -88,6 +90,14 @@ def main():
     )
     model_config = transformers.AutoConfig.from_pretrained(args.init_ckpt)
 
+    if args.ntk:
+        rope_scaling = {
+            "type": "dynamic",
+            "factor": 2,
+        }
+        model_config.rope_scaling = rope_scaling
+        logger.info(f"Turn on dynamic rope for llama2")
+        
     # dataset
     dataloader_maker = make_tokenized_dataloader if args.input_format == 'tokenized' else make_prompt_dataloader
     train_dataloader = dataloader_maker(tokenizer=tokenizer, data_args=args)
