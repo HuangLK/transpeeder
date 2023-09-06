@@ -36,7 +36,8 @@ See `examples/train_llama_deepspeed.sh`.
 ```bash
 python -m scripts.convert2hf --model_size 7B \
     --input_dir ./output/llama-7B-ckpt/global_step1000/ \
-    --output_dir ./output/llama_hf_7B
+    --output_dir ./output/llama_hf_7B \
+    --tokenizer_size 32001
 cp /path/to/llama-7b-hf/*.json ./output/llama_hf_7B
 cp /path/to/llama-7b-hf/tokenizer.model ./output/llama_hf_7B
 ```
