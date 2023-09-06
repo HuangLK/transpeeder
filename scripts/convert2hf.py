@@ -32,7 +32,7 @@ def write_json(text, path):
         json.dump(text, f)
 
 
-def write_model(model_path, input_base_path, model_size):
+def write_model(model_path, input_base_path, model_size, tokenizer_size):
     assert model_size in PARAM_MAP
     os.makedirs(model_path, exist_ok=True)
 
@@ -40,7 +40,7 @@ def write_model(model_path, input_base_path, model_size):
     n_layers = params["n_layers"]
 
     loaded = {}
-    ORIGINAL_TOKENIZER_SIZE = 32000
+    ORIGINAL_TOKENIZER_SIZE = tokenizer_size
     for pt in Path(input_base_path).iterdir():
         # assert tp/mp == 1
         sd = torch.load(pt, map_location="cpu")
@@ -78,11 +78,17 @@ def main():
         "--output_dir",
         help="Location to write HF model and tokenizer",
     )
+    parser.add_argument(
+    "--tokenizer_size",
+    help="Size of tokenizer",
+    type=int,
+    )
     args = parser.parse_args()
     write_model(
         model_path=args.output_dir,
         input_base_path=args.input_dir,
         model_size=args.model_size,
+        tokenizer_size=args.tokenizer_size,
     )
 
 

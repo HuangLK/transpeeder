@@ -3,8 +3,6 @@
     "train_batch_size": 128,
     "steps_per_print": 100,
     "gradient_clipping": 1.0,
-    "lr-decay-style": "cosine",
-    "warmup": 0.1,
     "bf16": {
         "enabled": false
     },
@@ -19,12 +17,20 @@
     "optimizer": {
         "type": "Adam",
         "params": {
-            "lr": 5e-6,
+            "lr": 1e-5,
             "betas": [0.9, 0.95],
             "eps": 1.0e-8
         }
     },
-    "min_lr": 5e-7,
+    "scheduler": {
+        "type": "WarmupDecayLR",
+        "params": {
+            "warmup_min_lr": 1e-6,
+            "warmup_max_lr": 1e-5,
+            "warmup_num_steps": 100,
+            "total_num_steps": 1000
+        }
+    },
     "zero_optimization": {
         "stage": 1,
         "offload_optimizer": {
@@ -45,6 +51,12 @@
         "number_checkpoints": null,
         "synchronize_checkpoint_boundary": false,
         "profile": false
+    },
+    "wandb": {
+        "enabled": true,
+        "team": null,
+        "group": null,
+        "project": "llama-65B-test-ckpt"
     },
     "wall_clock_breakdown": true
 }
