@@ -1,5 +1,5 @@
 # transpeeder
-This is a project under development, which aims to fine-tune the llama (7-65B) model based on the 🤗transformers and 🚀deepspeed, and provide simple and convenient training scripts.
+This is a project under development, which aims to fine-tune the llama (7-70B) model based on the 🤗transformers and 🚀deepspeed, and provide simple and convenient training scripts.
 
 ## installation
 ```

@@ -19,6 +19,9 @@ PARAM_MAP = {
     "65B": {
         "n_layers": 80,
     },
+    "70B": {
+        "n_layers": 80,
+    },
 }
 
 
@@ -43,9 +46,9 @@ def write_model(model_path, input_base_path, model_size, tokenizer_size):
     ORIGINAL_TOKENIZER_SIZE = tokenizer_size
     for pt in Path(input_base_path).iterdir():
         # assert tp/mp == 1
-        sd = torch.load(pt, map_location="cpu")
         if not pt.name.startswith('layer_'):
             continue
+        sd = torch.load(pt, map_location="cpu")
         if pt.name == 'layer_00-model_00-model_states.pt':
             loaded['model.embed_tokens.weight'] = sd['weight'][: ORIGINAL_TOKENIZER_SIZE, :]
             continue
@@ -72,7 +75,7 @@ def main():
     )
     parser.add_argument(
         "--model_size",
-        choices=["7B", "13B", "30B", "65B"],
+        choices=["7B", "13B", "30B", "65B", "70B"],
     )
     parser.add_argument(
         "--output_dir",
