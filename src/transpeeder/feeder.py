@@ -12,7 +12,7 @@ import torch
 import deepspeed
 import transformers
 from tqdm import tqdm
-from torch.utils.data import Dataset, Subset, DataLoader
+from torch.utils.data import Dataset, Subset, DataLoader, DistributedSampler
 from sklearn.model_selection import train_test_split
 
 from .utils import is_rank_0
@@ -79,7 +79,7 @@ def _make_labels(input_ids, tokenizer: transformers.PreTrainedTokenizer, mode: s
                     edi += 1
                 if edi < len(input_row) and \
                         input_row[edi + 1] != PROMPTER_TOKEN_ID:
-                    logger.warning(f'exepect {PROMPTER_TOKEN} after {ENDOFTEXT_TOKEN}, get {input_row[edi + 1]}.')
+                    logger.warning(f'expect {PROMPTER_TOKEN} after {ENDOFTEXT_TOKEN}, get {input_row[edi + 1]}.')
                 label_row[idx + 1: edi + 1] = input_row[idx + 1: edi + 1]
 
         return labels
@@ -245,33 +245,39 @@ def train_val_dataset(dataset, val_split=0.2):
     return Subset(dataset, train_idx), Subset(dataset, val_idx)
 
 
-def make_prompt_dataloader(tokenizer: transformers.PreTrainedTokenizer, data_args, val_split=None) -> Dict:
+def make_prompt_dataloader(tokenizer: transformers.PreTrainedTokenizer, data_args, engine, val_split=None) -> Dict:
     # TODO add eval dataloader
     assert val_split is None
     dataset = PromptDataset(data_path=data_args.data_path, eos=tokenizer.eos_token)
     data_collator = DataCollatorForPromptDataset(tokenizer=tokenizer, mode=data_args.mode)
     g = torch.Generator()
-
+    train_sampler = DistributedSampler(dataset,
+                    num_replicas=engine.dp_world_size,
+                    rank=engine.mpu.get_data_parallel_rank(),
+                    shuffle=True)
     dataloader = DataLoader(dataset,
                             collate_fn=data_collator,
                             num_workers=data_args.num_workers,
                             batch_size=data_args.batch_size,
-                            shuffle=True,
+                            sampler=train_sampler,
                             drop_last=True,
                             generator=g,)
     return iter(deepspeed.utils.RepeatingLoader(dataloader))
 
 
-def make_tokenized_dataloader(tokenizer: transformers.PreTrainedTokenizer, data_args, val_split=None) -> Dict:
+def make_tokenized_dataloader(tokenizer: transformers.PreTrainedTokenizer, data_args, engine, val_split=None) -> Dict:
     dataset = TokenizedDataset(data_path=data_args.data_path)
     data_collator = DataCollatorForTokenizedDataset(tokenizer=tokenizer, mode=data_args.mode)
     g = torch.Generator()
-
+    train_sampler = DistributedSampler(dataset,
+                    num_replicas=engine.dp_world_size,
+                    rank=engine.mpu.get_data_parallel_rank(),
+                    shuffle=True)
     dataloader = DataLoader(dataset,
                             collate_fn=data_collator,
                             num_workers=data_args.num_workers,
                             batch_size=data_args.batch_size,
-                            shuffle=True,
+                            sampler=train_sampler,
                             drop_last=True,
                             generator=g,)
     return iter(deepspeed.utils.RepeatingLoader(dataloader))

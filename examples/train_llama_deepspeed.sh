@@ -23,7 +23,7 @@ deepspeed --include localhost:$2  --master_port ${MASTER_PORT} ${WORK_DIR}/train
     --output_dir ${OUTPUT} \
     --init_ckpt /path/to/models/llama-30b-init-ckpt/ \
     --data_path /path/to/alpaca_en_zh_oneline_format.json \
-    --max_seq_len 1024 \
+    --max_seq_len 8192 \
     --train_steps 1000 \
     --eval_steps 10 \
     --save_steps 200 \

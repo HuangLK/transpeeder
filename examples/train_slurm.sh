@@ -58,6 +58,7 @@ export CMD=" \
     --pipe_parallel_size 8 \
     --model_parallel_size 1 \
     --use_flash_attn true \
+    --ntk true \
     --deepspeed_config ${WORK_DIR}/../configs/ds_config_zero1.json
     "
 
