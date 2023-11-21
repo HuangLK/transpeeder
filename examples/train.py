@@ -98,9 +98,6 @@ def main():
         model_config.rope_scaling = rope_scaling
         logger.info(f"Turn on dynamic rope for llama2")
         
-    # dataset
-    dataloader_maker = make_tokenized_dataloader if args.input_format == 'tokenized' else make_prompt_dataloader
-    train_dataloader = dataloader_maker(tokenizer=tokenizer, data_args=args)
     # pipeline model
     model = get_model(model_config, args, activation_checkpointing_config, partition_method="type:ParallelTransformerLayerPipe")
 
@@ -109,6 +106,10 @@ def main():
         model=model,
         model_parameters=[p for p in model.parameters() if p.requires_grad],
     )
+
+    # dataset
+    dataloader_maker = make_tokenized_dataloader if args.input_format == 'tokenized' else make_prompt_dataloader
+    train_dataloader = dataloader_maker(tokenizer=tokenizer, data_args=args, engine=engine)
 
     # use `convert2ckpt.py`
     if args.resume_step < 0:

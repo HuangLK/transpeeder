@@ -38,7 +38,7 @@ def write_ckpt(outpath: Path, model: torch.nn.Module, model_config: transformers
     torch.save(sd, outpath / f"layer_{n_layers + 2}-model_00-model_states.pt")
     # decoder layers
     for layer_i in range(n_layers):
-        sd = {nm.replace(f"model.layers.{layer_i}.", f""): weight for nm, weight in loaded.items() if nm.startswith(f"model.layers.{layer_i}.")}
+        sd = {nm.replace(f"model.layers.{layer_i}.", f""): weight for nm, weight in loaded.items() if nm.startswith(f"model.layers.{layer_i}.") and not nm.endswith("inv_freq")}
         torch.save(sd, outpath / f"layer_{layer_i + 1:02d}-model_00-model_states.pt")
 
     model_state = {
